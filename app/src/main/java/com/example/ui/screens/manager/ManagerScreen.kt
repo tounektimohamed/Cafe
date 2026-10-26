@@ -325,6 +325,7 @@ fun ManagerScreen(
                                     Role.COUNTER -> (MaterialTheme.colorScheme.primary to Icons.Default.PointOfSale)
                                     Role.WAITER -> (MaterialTheme.colorScheme.secondary to Icons.Default.RestaurantMenu)
                                     Role.MANAGER -> (Color(0xFF6A1B9A) to Icons.Default.AdminPanelSettings)
+                                    Role.KITCHEN -> (Color(0xFFE65100) to Icons.Default.SoupKitchen)
                                 }
 
                                 Card(
@@ -746,6 +747,11 @@ fun ManagerScreen(
                             onClick = { selectedRole = Role.MANAGER },
                             label = { Text("مدير") }
                         )
+                        FilterChip(
+                            selected = selectedRole == Role.KITCHEN,
+                            onClick = { selectedRole = Role.KITCHEN },
+                            label = { Text("مطبخ/بار") }
+                        )
                     }
 
                     OutlinedTextField(
@@ -833,6 +839,11 @@ fun ManagerScreen(
                             selected = editRole == Role.MANAGER,
                             onClick = { editRole = Role.MANAGER },
                             label = { Text("مدير") }
+                        )
+                        FilterChip(
+                            selected = editRole == Role.KITCHEN,
+                            onClick = { editRole = Role.KITCHEN },
+                            label = { Text("مطبخ/بار") }
                         )
                     }
                 }

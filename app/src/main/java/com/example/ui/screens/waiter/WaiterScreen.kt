@@ -37,7 +37,9 @@ import com.example.core.model.Money
 import com.example.core.model.OrderState
 import com.example.core.repository.PosRepository
 import com.example.ui.components.ConnectionStatusBadge
-import com.example.ui.components.MoneyBadge
+import com.example.core.data.entity.ModifierOptionEntity
+import com.example.ui.screens.pos.PosCartState
+import com.example.ui.screens.pos.PosOrderScreen
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -76,6 +78,7 @@ fun WaiterScreen(
     val tables by repository.getAllTables().collectAsState(initial = emptyList())
     val categories by repository.getAllCategories().collectAsState(initial = emptyList())
     val products by repository.getAvailableProducts().collectAsState(initial = emptyList())
+    val modifierOptions by repository.getAllModifiers().collectAsState(initial = emptyList())
     val orders by repository.getActiveOrders().collectAsState(initial = emptyList())
     val connectionStatus by repository.networkManager.connectionStatus.collectAsState()
     val isHost by repository.networkManager.isHost.collectAsState()
@@ -85,10 +88,8 @@ fun WaiterScreen(
     var showNewOrderDialog by remember { mutableStateOf(false) }
     var selectedTableForNewOrder by remember { mutableStateOf<DiningTableEntity?>(null) }
 
-    // Direct mode cart state (when tables mode is disabled)
-    val directCart = remember { mutableStateMapOf<String, Int>() }
-    val directNotes = remember { mutableStateMapOf<String, String>() }
-    var directCustomerNote by remember { mutableStateOf("") }
+    // Direct mode cart state using PosCartState
+    val directPosCart = remember { PosCartState() }
     var orderSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     // Ready alert for this waiter
@@ -338,37 +339,44 @@ fun WaiterScreen(
                         }
                     }
                 } else {
-                    // MODE 2: Direct Fast POS (Without Tables Mode)
-                    DirectPosOrderView(
+                    // MODE 2: Direct Fast POS using PosOrderScreen
+                    PosOrderScreen(
+                        title = "طلب مباشر - ${currentStaff.name}",
                         categories = categories,
                         products = products,
-                        cart = directCart,
-                        notesMap = directNotes,
-                        customerNote = directCustomerNote,
-                        onCustomerNoteChange = { directCustomerNote = it },
-                        onSubmitOrder = {
-                            if (directCart.isNotEmpty()) {
+                        modifierOptions = modifierOptions,
+                        cart = directPosCart,
+                        onSendToKitchen = {
+                            if (directPosCart.lines.isNotEmpty()) {
                                 scope.launch {
-                                    val cartItems = directCart.mapNotNull { (prodId, qty) ->
-                                        val prod = products.find { it.id == prodId }
-                                        prod?.let { it to qty }
-                                    }
-                                    val orderTitle = if (directCustomerNote.isNotBlank()) directCustomerNote else "سفري مباشر"
-                                    repository.createOrder(
+                                    repository.createOrderFromPosCart(
                                         tableId = null,
-                                        tableName = orderTitle,
+                                        tableName = "سفري مباشر",
                                         isTakeaway = true,
-                                        items = cartItems,
-                                        modifiersNotes = directNotes.toMap(),
+                                        cart = directPosCart,
                                         waiter = currentStaff
                                     )
-                                    directCart.clear()
-                                    directNotes.clear()
-                                    directCustomerNote = ""
-                                    orderSuccessMessage = "تم إرسال الطلب للكاونتر بنجاح!"
+                                    directPosCart.clear()
+                                    orderSuccessMessage = "تم إرسال الطلب للمطبخ والكاونتر بنجاح!"
                                 }
                             }
-                        }
+                        },
+                        onPay = {
+                            if (directPosCart.lines.isNotEmpty()) {
+                                scope.launch {
+                                    repository.createOrderFromPosCart(
+                                        tableId = null,
+                                        tableName = "سفري مباشر",
+                                        isTakeaway = true,
+                                        cart = directPosCart,
+                                        waiter = currentStaff
+                                    )
+                                    directPosCart.clear()
+                                    orderSuccessMessage = "تم تسجيل الطلب وإحالته للدفع بنجاح!"
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             } else {
@@ -473,29 +481,122 @@ fun WaiterScreen(
         }
     }
 
-    // Modal for New Order in Table Mode
+    // Modal for New Order in Table Mode using PosOrderScreen
     if (showNewOrderDialog) {
-        NewOrderDialog(
-            initialTable = selectedTableForNewOrder,
-            availableTables = tables,
-            categories = categories,
-            products = products,
-            onDismiss = { showNewOrderDialog = false },
-            onSubmitOrder = { table, isTakeaway, cartItems, notesMap ->
-                scope.launch {
-                    repository.createOrder(
-                        tableId = table?.id,
-                        tableName = if (isTakeaway) "سفري" else (table?.name ?: "سفري"),
-                        isTakeaway = isTakeaway,
-                        items = cartItems,
-                        modifiersNotes = notesMap,
-                        waiter = currentStaff
+        var currentSelectedTable by remember { mutableStateOf(selectedTableForNewOrder) }
+        var isTakeaway by remember { mutableStateOf(selectedTableForNewOrder == null) }
+        val tableCart = remember { PosCartState() }
+
+        Dialog(
+            onDismissRequest = {
+                showNewOrderDialog = false
+                tableCart.clear()
+            },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Header with table choice and takeaway toggle
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                FilterChip(
+                                    selected = isTakeaway,
+                                    onClick = { isTakeaway = !isTakeaway },
+                                    label = { Text("سفري") }
+                                )
+                                if (!isTakeaway) {
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        items(tables, key = { it.id }) { tbl ->
+                                            FilterChip(
+                                                selected = currentSelectedTable?.id == tbl.id,
+                                                onClick = {
+                                                    currentSelectedTable = tbl
+                                                    isTakeaway = false
+                                                },
+                                                label = { Text(tbl.name) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            IconButton(onClick = {
+                                showNewOrderDialog = false
+                                tableCart.clear()
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                            }
+                        }
+                    }
+
+                    // PosOrderScreen component
+                    PosOrderScreen(
+                        title = if (isTakeaway) "طلب سفري" else "طلب طاولة: ${currentSelectedTable?.name ?: "طاولة"}",
+                        categories = categories,
+                        products = products,
+                        modifierOptions = modifierOptions,
+                        cart = tableCart,
+                        onSendToKitchen = {
+                            if (tableCart.lines.isNotEmpty()) {
+                                scope.launch {
+                                    val tableId = if (isTakeaway) null else currentSelectedTable?.id
+                                    val tableName = if (isTakeaway) "سفري" else (currentSelectedTable?.name ?: "طاولة")
+                                    repository.createOrderFromPosCart(
+                                        tableId = tableId,
+                                        tableName = tableName,
+                                        isTakeaway = isTakeaway,
+                                        cart = tableCart,
+                                        waiter = currentStaff
+                                    )
+                                    tableCart.clear()
+                                    showNewOrderDialog = false
+                                    orderSuccessMessage = "تم إرسال طلب $tableName للمطبخ بنجاح!"
+                                }
+                            }
+                        },
+                        onPay = {
+                            if (tableCart.lines.isNotEmpty()) {
+                                scope.launch {
+                                    val tableId = if (isTakeaway) null else currentSelectedTable?.id
+                                    val tableName = if (isTakeaway) "سفري" else (currentSelectedTable?.name ?: "طاولة")
+                                    repository.createOrderFromPosCart(
+                                        tableId = tableId,
+                                        tableName = tableName,
+                                        isTakeaway = isTakeaway,
+                                        cart = tableCart,
+                                        waiter = currentStaff
+                                    )
+                                    tableCart.clear()
+                                    showNewOrderDialog = false
+                                    orderSuccessMessage = "تم تسجيل طلب $tableName وإحالته للدفع!"
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
                     )
-                    showNewOrderDialog = false
-                    orderSuccessMessage = "تم إرسال الطلب للكاونتر بنجاح!"
                 }
             }
-        )
+        }
     }
 
     orderSuccessMessage?.let { msg ->

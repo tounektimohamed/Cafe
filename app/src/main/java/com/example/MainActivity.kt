@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.core.model.Role
 import com.example.ui.screens.counter.CounterScreen
+import com.example.ui.screens.kitchen.KitchenScreen
 import com.example.ui.screens.login.PinLoginScreen
 import com.example.ui.screens.manager.ManagerScreen
 import com.example.ui.screens.settings.SettingsScreen
@@ -50,6 +51,9 @@ class MainActivity : ComponentActivity() {
                                             popUpTo("login") { inclusive = true }
                                         }
                                         Role.MANAGER -> navController.navigate("manager") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                        Role.KITCHEN -> navController.navigate("kitchen") {
                                             popUpTo("login") { inclusive = true }
                                         }
                                     }
@@ -139,6 +143,27 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
+                        }
+
+                        composable("kitchen") {
+                            currentStaff?.let { staff ->
+                                KitchenScreen(
+                                    repository = repository,
+                                    currentStaff = staff,
+                                    onNavigateToRoleSelect = {
+                                        repository.logout()
+                                        navController.navigate("login") {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    }
+                                )
+                            } ?: run {
+                                LaunchedEffect(Unit) {
+                                    navController.navigate("login") {
+                                        popUpTo("kitchen") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
 
                         composable("settings") {

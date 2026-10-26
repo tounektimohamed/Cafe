@@ -36,6 +36,8 @@ import com.example.ui.components.CancellationDialog
 import com.example.ui.components.ConnectionStatusBadge
 import com.example.ui.components.MoneyBadge
 import com.example.ui.components.ReceiptPreviewDialog
+import com.example.ui.screens.pos.PosCartState
+import com.example.ui.screens.pos.PosOrderScreen
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -52,11 +54,17 @@ fun CounterScreen(
     val connectionStatus by repository.networkManager.connectionStatus.collectAsState()
     val isHost by repository.networkManager.isHost.collectAsState()
 
+    val categories by repository.getAllCategories().collectAsState(initial = emptyList())
+    val products by repository.getAvailableProducts().collectAsState(initial = emptyList())
+    val modifierOptions by repository.getAllModifiers().collectAsState(initial = emptyList())
+
     var selectedFilter by remember { mutableStateOf<OrderState?>(null) }
     var selectedOrderForPayment by remember { mutableStateOf<OrderWithLines?>(null) }
     var orderToCancel by remember { mutableStateOf<OrderWithLines?>(null) }
     var previewReceiptBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showNewCounterOrderDialog by remember { mutableStateOf(false) }
+    val counterPosCart = remember { PosCartState() }
 
     val stateMachine = remember { OrderStateMachine() }
 
@@ -105,6 +113,16 @@ fun CounterScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { showNewCounterOrderDialog = true },
+                icon = { Icon(Icons.Default.AddShoppingCart, contentDescription = null) },
+                text = { Text("طلب كاونتر مباشر", fontWeight = FontWeight.Bold) },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                modifier = Modifier.testTag("counter_direct_order_fab")
             )
         }
     ) { paddingValues ->
@@ -627,5 +645,98 @@ fun CounterScreen(
                 }
             }
         )
+    }
+
+    // Direct Counter Order Modal using PosOrderScreen
+    if (showNewCounterOrderDialog) {
+        Dialog(
+            onDismissRequest = {
+                showNewCounterOrderDialog = false
+                counterPosCart.clear()
+            },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "تسجيل طلب مباشر في الكاونتر",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            IconButton(onClick = {
+                                showNewCounterOrderDialog = false
+                                counterPosCart.clear()
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                            }
+                        }
+                    }
+
+                    PosOrderScreen(
+                        title = "قائمة المشروبات والمأكولات",
+                        categories = categories,
+                        products = products,
+                        modifierOptions = modifierOptions,
+                        cart = counterPosCart,
+                        onSendToKitchen = {
+                            if (counterPosCart.lines.isNotEmpty()) {
+                                scope.launch {
+                                    repository.createOrderFromPosCart(
+                                        tableId = null,
+                                        tableName = "كاونتر مباشر",
+                                        isTakeaway = true,
+                                        cart = counterPosCart,
+                                        waiter = currentStaff
+                                    )
+                                    counterPosCart.clear()
+                                    showNewCounterOrderDialog = false
+                                }
+                            }
+                        },
+                        onPay = {
+                            if (counterPosCart.lines.isNotEmpty()) {
+                                scope.launch {
+                                    val orderId = repository.createOrderFromPosCart(
+                                        tableId = null,
+                                        tableName = "كاونتر مباشر",
+                                        isTakeaway = true,
+                                        cart = counterPosCart,
+                                        waiter = currentStaff
+                                    )
+                                    // Transition directly to PAID and print ticket automatically
+                                    repository.transitionOrder(
+                                        orderId = orderId,
+                                        targetState = OrderState.PAID,
+                                        receivedMillimes = counterPosCart.total.millimes,
+                                        actingStaff = currentStaff
+                                    )
+                                    counterPosCart.clear()
+                                    showNewCounterOrderDialog = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
     }
 }

@@ -17,6 +17,8 @@ import com.example.core.license.LicenseManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.example.ui.screens.pos.PosCartState
+import com.example.ui.screens.pos.PosCartLine
 
 class PosRepository(
     private val context: Context,
@@ -90,6 +92,7 @@ class PosRepository(
     fun getAllCategories(): Flow<List<CategoryEntity>> = database.menuDao().getAllCategories()
     fun getAllProducts(): Flow<List<ProductEntity>> = database.menuDao().getAllProducts()
     fun getAvailableProducts(): Flow<List<ProductEntity>> = database.menuDao().getAllAvailableProducts()
+    fun getAllModifiers(): Flow<List<ModifierOptionEntity>> = database.menuDao().getAllModifiers()
     fun getAllTables(): Flow<List<DiningTableEntity>> = database.diningTableDao().getAllTables()
     fun getAllStaff(): Flow<List<StaffEntity>> = database.staffDao().getAllActiveStaff()
 
@@ -215,6 +218,75 @@ class PosRepository(
         logAudit(
             action = "CREATE_ORDER",
             details = "إنشاء طلب جديد رقم #$nextOrderNumber لطاولة $tableName بمبلغ ${Money(totalMillimes)}",
+            staff = waiter
+        )
+
+        networkManager.broadcastMessage("ORDER_CREATED", orderId)
+        return orderId
+    }
+
+    suspend fun createOrderFromPosCart(
+        tableId: String?,
+        tableName: String,
+        isTakeaway: Boolean,
+        cart: PosCartState,
+        waiter: StaffEntity
+    ): String {
+        val nextOrderNumber = (database.orderDao().getMaxOrderNumber() ?: 0) + 1
+        val orderId = UUID.randomUUID().toString()
+
+        val lines = cart.lines.map { line ->
+            val notesStr = line.modifiers.joinToString("، ") { it.nameAr }
+            OrderLineEntity(
+                id = UUID.randomUUID().toString(),
+                orderId = orderId,
+                productId = line.product.id,
+                productNameAr = line.product.nameAr,
+                unitPriceMillimes = line.unitPrice.millimes,
+                quantity = line.quantity,
+                notes = notesStr,
+                modifiersJson = notesStr
+            )
+        }
+
+        val totalAmount = cart.total.millimes
+        val discountAmount = cart.discount.millimes
+
+        val order = OrderEntity(
+            id = orderId,
+            orderNumber = nextOrderNumber,
+            tableId = tableId,
+            tableName = tableName,
+            isTakeaway = isTakeaway,
+            waiterId = waiter.id,
+            waiterName = waiter.name,
+            state = OrderState.NEW.name,
+            totalMillimes = totalAmount,
+            discountMillimes = discountAmount,
+            paymentFirst = paymentBeforePreparation.value,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+
+        database.orderDao().insertOrder(order)
+        database.orderDao().insertOrderLines(lines)
+
+        if (tableId != null) {
+            val table = database.diningTableDao().getTableById(tableId)
+            if (table != null) {
+                database.diningTableDao().updateTable(
+                    table.copy(
+                        status = "OCCUPIED",
+                        activeOrderId = orderId,
+                        activeWaiterName = waiter.name
+                    )
+                )
+            }
+        }
+
+        logAudit(
+            action = "CREATE_ORDER",
+            details = "إنشاء طلب جديد رقم #$nextOrderNumber ($tableName) بمبلغ ${cart.total}",
             staff = waiter
         )
 

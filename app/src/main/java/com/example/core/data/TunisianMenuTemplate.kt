@@ -106,6 +106,13 @@ object TunisianMenuTemplate {
                 role = "WAITER",
                 pinHash = "2222", // Default PIN: 2222
                 active = true
+            ),
+            StaffEntity(
+                id = "staff_kitchen",
+                name = "المطبخ والبار",
+                role = "KITCHEN",
+                pinHash = "3333", // Default PIN: 3333
+                active = true
             )
         )
     }

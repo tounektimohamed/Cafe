@@ -139,6 +139,7 @@ fun PinLoginScreen(
                         Role.COUNTER -> (Icons.Default.PointOfSale to MaterialTheme.colorScheme.primary)
                         Role.WAITER -> (Icons.Default.RestaurantMenu to MaterialTheme.colorScheme.secondary)
                         Role.MANAGER -> (Icons.Default.AdminPanelSettings to Color(0xFF6A1B9A))
+                        Role.KITCHEN -> (Icons.Default.SoupKitchen to Color(0xFFE65100))
                     }
 
                     Card(
