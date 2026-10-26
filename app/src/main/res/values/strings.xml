@@ -1,0 +1,81 @@
+<resources>
+    <string name="app_name">CaféFlow Pro</string>
+    <string name="currency_code">TND</string>
+    <string name="currency_symbol">د.ت</string>
+    <string name="currency_millimes">مليم</string>
+
+    <!-- Roles -->
+    <string name="role_counter">المحاسب (Comptoir)</string>
+    <string name="role_waiter">النادل (Serveur)</string>
+    <string name="role_manager">المدير (Gérant)</string>
+
+    <!-- Navigation & Titles -->
+    <string name="title_counter">شاشة الكاونتر والمحاسبة</string>
+    <string name="title_waiter">شاشة النادل والطلبات</string>
+    <string name="title_manager">لوحة تحكم المدير</string>
+    <string name="title_tables">إدارة الطاولات</string>
+    <string name="title_menu">قائمة المشروبات والمنتجات</string>
+    <string name="title_reports">التقارير والمبيعات</string>
+    <string name="title_shifts">غلق الصندوق والورديات</string>
+    <string name="title_settings">الإعدادات وتكوين النظام</string>
+    <string name="title_audit">سجل العمليات والرقابة</string>
+    <string name="title_setup_wizard">معالج التثبيت السريع</string>
+
+    <!-- Order States -->
+    <string name="status_new">جديد</string>
+    <string name="status_awaiting_payment">في انتظار الدفع</string>
+    <string name="status_paid">مدفوع</string>
+    <string name="status_ready">جاهز للتقديم</string>
+    <string name="status_served">تم التقديم (مكتمل)</string>
+    <string name="status_cancelled">ملغى</string>
+
+    <!-- Order Actions -->
+    <string name="action_request_payment">طلب الدفع من النادل</string>
+    <string name="action_confirm_payment">تأكيد استلام المبلغ</string>
+    <string name="action_mark_ready">جاهز في البار / المطبخ</string>
+    <string name="action_mark_served">تم تقديم الطلب للزبون</string>
+    <string name="action_cancel_order">إلغاء الطلب</string>
+    <string name="action_print_ticket">طباعة تذكرة التحضير</string>
+    <string name="action_print_receipt">طباعة وصل الزبون</string>
+    <string name="action_add_item">إضافة منتج</string>
+    <string name="action_submit_order">إرسال الطلب للمحاسب</string>
+    <string name="action_new_order">طلب جديد</string>
+
+    <!-- Payment & Money -->
+    <string name="label_total">المجموع الإجمالي</string>
+    <string name="label_received">المبلغ المستلم</string>
+    <string name="label_change">المتبقي للزبون (الصرف)</string>
+    <string name="label_discount">تخفيض</string>
+    <string name="label_subtotal">المجموع الفرعي</string>
+    <string name="label_cash_only">الدفع نقداً فقط (Espèces)</string>
+
+    <!-- Tables -->
+    <string name="table_takeaway">طلبية سريعة (Emporter)</string>
+    <string name="table_number">طاولة %1$s</string>
+    <string name="table_free">شاغرة</string>
+    <string name="table_occupied">مشغولة</string>
+    <string name="table_bill_requested">في انتظار الحساب</string>
+
+    <!-- Network & Sync -->
+    <string name="net_status_connected">متصل بالشبكة المحلية (Wi-Fi)</string>
+    <string name="net_status_reconnecting">جارِ إعادة الاتصال بالخادم...</string>
+    <string name="net_status_offline">دون اتصال - وضع العمل دون إنترنت</string>
+    <string name="net_role_host">الجهاز الرئيسي (الخادم المحلي)</string>
+    <string name="net_role_client">جهاز عميل متصل بالرئيسي</string>
+
+    <!-- Wizard Steps -->
+    <string name="wizard_step_1">بيانات المقهى</string>
+    <string name="wizard_step_2">الطابعة الحرارية</string>
+    <string name="wizard_step_3">رمز المدير والموظفين</string>
+    <string name="wizard_step_4">قائمة المقهى التونسي</string>
+    <string name="wizard_step_5">تهيئة الطاولات</string>
+    <string name="wizard_step_6">ربط الجهاز الثاني (QR)</string>
+    <string name="wizard_step_7">الفحص الذاتي والجاهزية</string>
+
+    <!-- Prompts & Messages -->
+    <string name="enter_pin">أدخل رمز الدخول (PIN)</string>
+    <string name="manager_pin_required">مطلوب رمز المدير للمصادقة</string>
+    <string name="cancellation_reason_hint">سبب الإلغاء (إجباري)</string>
+    <string name="order_ready_alert">الطلب الخاص بالطاولة %1$s جاهز الآن!</string>
+    <string name="payment_requested_alert">مطلوب خلاص الطلب: %1$s</string>
+</resources>
